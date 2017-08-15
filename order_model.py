@@ -116,7 +116,7 @@ class ResNet(object):
     with tf.variable_scope('logit_label'):
       logits_labels = self._fully_connected(y, self.hps.num_classes)
       self.predictions = tf.nn.softmax(logits)
-      tf.print(self.predictions, self.predictions, 'predictions')
+      tf.Print(self.predictions, self.predictions, 'predictions')
       self.nlabels = tf.argmax(self.predictions)
 
     with tf.variable_scope('unit_last_perm'):
