@@ -38,3 +38,19 @@ py_library(
     name = "cifar_input",
     srcs = ["cifar_input.py"],
 )
+
+py_library(
+    name = "order_model",
+    srcs = ["order_model.py"],
+)
+
+py_binary(
+    name = "order_main",
+    srcs = [
+        "order_main.py",
+    ],
+    deps = [
+        ":cifar_input",
+        ":order_model",
+    ],
+)

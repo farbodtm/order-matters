@@ -108,33 +108,35 @@ class ResNet(object):
       with tf.variable_scope('unit_3_%d' % i):
         x = res_func(x, filters[3], filters[3], self._stride_arr(1), False)
 
-    with tf.variable_scope('unit_last_label'):
-      y = self._batch_norm('final_bn_label', x)
+    with tf.variable_scope('unit_last'):
+      y = self._batch_norm('final_bn', x)
       y = self._relu(y, self.hps.relu_leakiness)
       y = self._global_avg_pool(y)
 
     with tf.variable_scope('logit_label'):
       logits_labels = self._fully_connected(y, self.hps.num_classes)
-      self.predictions = tf.nn.softmax(logits)
-      tf.Print(self.predictions, self.predictions, 'predictions')
-      self.nlabels = tf.argmax(self.predictions)
+      self.predictions = tf.nn.softmax(logits_labels)
 
-    with tf.variable_scope('unit_last_perm'):
-      z = self._batch_norm('final_bn_perm', x)
-      z = self._relu(z, self.hps.relu_leakiness)
-      z = self._global_avg_pool(z)
+      self.ilabels = tf.argmax(self.predictions, axis=1)
+      self.nlabels = tf.zeros(tf.shape(self.predictions));
+
+      def map_label_fn(i):
+        delta = tf.SparseTensor([[self.ilabels[i[1]]]], [1.0], tf.shape(i[0], out_type=tf.int64))
+        return i[0] + tf.sparse_tensor_to_dense(delta)
+      self.newlabels = tf.map_fn(map_label_fn, (self.nlabels, tf.range(128, dtype=tf.int64)), dtype=tf.float32)
 
     with tf.variable_scope('logit_perm'):
-      logits_perms = self._fully_connected(z, self.hps.num_classes)
-      self.permutations = tf.nn.softmax(permutations)
+      logits_perms = self._fully_connected(y, self.hps.num_classes)
+      self.permutations = tf.nn.softmax(logits_perms)
 
     with tf.variable_scope('costs'):
       xent = tf.nn.softmax_cross_entropy_with_logits(
-          logits=logits, labels=self.labels)
+          logits=logits_labels, labels=self.labels)
       self.cost = tf.reduce_mean(xent, name='xent')
       self.cost += self._decay()
 
       tf.summary.scalar('cost', self.cost)
+
 
   def _build_train_op(self):
     """Build training specific ops for the graph."""

@@ -21,7 +21,7 @@ import sys
 
 import cifar_input
 import numpy as np
-import resnet_model
+import order_model
 import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
@@ -51,7 +51,7 @@ def train(hps):
   """Training loop."""
   images, labels = cifar_input.build_input(
       FLAGS.dataset, FLAGS.train_data_path, hps.batch_size, FLAGS.mode)
-  model = resnet_model.ResNet(hps, images, labels, FLAGS.mode)
+  model = order_model.ResNet(hps, images, labels, FLAGS.mode)
   model.build_graph()
 
   param_stats = tf.contrib.tfprof.model_analyzer.print_model_analysis(
@@ -119,7 +119,7 @@ def evaluate(hps):
   """Eval loop."""
   images, labels = cifar_input.build_input(
       FLAGS.dataset, FLAGS.eval_data_path, hps.batch_size, FLAGS.mode)
-  model = resnet_model.ResNet(hps, images, labels, FLAGS.mode)
+  model = order_model.ResNet(hps, images, labels, FLAGS.mode)
   model.build_graph()
   saver = tf.train.Saver()
   summary_writer = tf.summary.FileWriter(FLAGS.eval_dir)
@@ -191,7 +191,7 @@ def main(_):
   elif FLAGS.dataset == 'cifar100':
     num_classes = 100
 
-  hps = resnet_model.HParams(batch_size=batch_size,
+  hps = order_model.HParams(batch_size=batch_size,
                              num_classes=num_classes,
                              min_lrn_rate=0.0001,
                              lrn_rate=0.1,
