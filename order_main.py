@@ -152,7 +152,9 @@ def evaluate(hps):
     saver.restore(sess, ckpt_state.model_checkpoint_path)
 
     total_prediction, correct_prediction = 0, 0
+    truth_count = collections.Counter()
     label_count = collections.Counter()
+    perm_count = collections.Counter()
     for _ in six.moves.range(FLAGS.eval_batch_count):
       (summaries, loss, predictions, permutations, truth, train_step) = sess.run(
           [model.summaries, model.cost, model.predictions, model.permutations,
@@ -160,8 +162,11 @@ def evaluate(hps):
 
       truth = np.argmax(truth, axis=1)
       n_predictions = np.argmax(predictions, axis=1)
-
       permutations = np.argmax(permutations, axis=1)
+
+      truth_count += collections.Counter(truth)
+      label_count += collections.Counter(n_predictions)
+      perm_count += collections.Counter(permutations)
 
       predictions = []
       table = lookup_table()
@@ -177,8 +182,17 @@ def evaluate(hps):
       correct_prediction += np.sum(truth == predictions)
       total_prediction += predictions.shape[0]
 
+
     precision = 1.0 * correct_prediction / total_prediction
     best_precision = max(precision, best_precision)
+    tf.logging.info('truth count:')
+    print truth_count
+
+    tf.logging.info('label count:')
+    print label_count
+
+    tf.logging.info('permutation count:')
+    print perm_count
 
     precision_summ = tf.Summary()
     precision_summ.value.add(
@@ -191,6 +205,7 @@ def evaluate(hps):
     summary_writer.add_summary(summaries, train_step)
     tf.logging.info('loss: %.3f, precision: %.3f, best precision: %.3f' %
                     (loss, precision, best_precision))
+
     summary_writer.flush()
 
     if FLAGS.eval_once:
