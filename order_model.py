@@ -117,25 +117,56 @@ class ResNet(object):
       logits_labels = self._fully_connected(y, self.hps.num_classes)
       self.predictions = tf.nn.softmax(logits_labels)
 
-      self.ilabels = tf.argmax(self.predictions, axis=1)
-      self.nlabels = tf.zeros(tf.shape(self.predictions));
+      self.arg_preds = tf.argmax(self.predictions, axis=1)
 
+      zeros = tf.zeros(tf.shape(self.predictions));
       def map_label_fn(i):
-        delta = tf.SparseTensor([[self.ilabels[i[1]]]], [1.0], tf.shape(i[0], out_type=tf.int64))
+        delta = tf.SparseTensor([[self.arg_preds[i[1]]]], [1.0], tf.shape(i[0], out_type=tf.int64))
         return i[0] + tf.sparse_tensor_to_dense(delta)
-      self.newlabels = tf.map_fn(map_label_fn, (self.nlabels, tf.range(128, dtype=tf.int64)), dtype=tf.float32)
+      self.new_labels = tf.map_fn(map_label_fn, (zeros, tf.range(tf.shape(self.predictions, out_type=tf.int64)[0], dtype=tf.int64)), dtype=tf.float32)
 
     with tf.variable_scope('logit_perm'):
       logits_perms = self._fully_connected(y, self.hps.num_classes)
       self.permutations = tf.nn.softmax(logits_perms)
 
     with tf.variable_scope('costs'):
+      self.arg_labels = tf.argmax(self.labels, axis=1)
+
+      zeros = tf.zeros(tf.shape(self.predictions));
+      def map_label_fn_p(i):
+        pred =self.arg_preds[i[1]]
+        label = self.arg_labels[i[1]]
+        def f1():
+          return tf.sparse_tensor_to_dense(tf.SparseTensor([[(pred + 10) - label]], [1.0], tf.shape(i[0], out_type=tf.int64)))
+        def f2():
+          return tf.sparse_tensor_to_dense(tf.SparseTensor([[pred - label]], [1.0], tf.shape(i[0], out_type=tf.int64)))
+        delta = tf.cond(pred < label, f1 , f2)
+        return i[0] + delta
+      self.new_permutations = tf.map_fn(map_label_fn_p, (zeros, tf.range(tf.shape(self.predictions, out_type=tf.int64)[0], dtype=tf.int64)), dtype=tf.float32)
+
+      #self._extra_train_ops.append(tf.Print(self.labels, [self.labels], 'labels', summarize=10))
+      #self._extra_train_ops.append(tf.Print(self.new_labels, [self.new_labels], 'new_labels', summarize=10))
+      #self._extra_train_ops.append(tf.Print(self.new_permutations, [self.new_permutations], 'new_permutations!!!!!', summarize=10))
+      #self._extra_train_ops.append(tf.Print(self.arg_labels, [self.arg_labels], 'arg_labels', summarize=1))
+      #self._extra_train_ops.append(tf.Print(self.arg_preds, [self.arg_preds], 'arg_pres', summarize=1))
+      #self._extra_train_ops.append(tf.Print(self.arg_preds, [self.arg_preds], '----', summarize=1))
+
       xent = tf.nn.softmax_cross_entropy_with_logits(
-          logits=logits_labels, labels=self.labels)
+          logits=logits_labels, labels=self.new_labels)
+
+      xent_perm = tf.nn.softmax_cross_entropy_with_logits(
+          logits=logits_perms, labels=self.new_permutations)
+
       self.cost = tf.reduce_mean(xent, name='xent')
+      self.cost_perm = tf.reduce_mean(xent_perm, name='xent_perm')
+      tf.summary.scalar('cost/label', self.cost)
+      tf.summary.scalar('cost/perm', self.cost_perm)
+
+      #self._extra_train_ops.append(tf.Print(self.cost, [self.cost], '----', summarize=1))
+      self.cost += self.cost_perm
       self.cost += self._decay()
 
-      tf.summary.scalar('cost', self.cost)
+      tf.summary.scalar('cost/total', self.cost)
 
 
   def _build_train_op(self):

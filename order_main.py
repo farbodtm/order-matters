@@ -1,12 +1,3 @@
-# Copyright 2016 The TensorFlow Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
@@ -18,6 +9,7 @@
 import time
 import six
 import sys
+import collections
 
 import cifar_input
 import numpy as np
@@ -46,6 +38,16 @@ tf.app.flags.DEFINE_string('log_root', '',
 tf.app.flags.DEFINE_integer('num_gpus', 0,
                             'Number of gpus used for training. (0 or 1)')
 
+def lookup_table():
+  table = []
+  arr = range(10)
+  table.append(arr)
+  for i in range(9):
+    new_arr = list(arr)
+    new_arr.insert(0, new_arr.pop())
+    table.append(new_arr)
+    arr = new_arr
+  return table
 
 def train(hps):
   """Training loop."""
@@ -66,7 +68,16 @@ def train(hps):
 
   truth = tf.argmax(model.labels, axis=1)
   predictions = tf.argmax(model.predictions, axis=1)
-  precision = tf.reduce_mean(tf.to_float(tf.equal(predictions, truth)))
+  permutations = tf.argmax(model.permutations, axis=1)
+  table = tf.constant(lookup_table(), dtype=tf.int64)
+  def map_label_fn_p(i):
+    pred = predictions[i]
+    perm = permutations[i]
+    return table[perm][pred]
+  final_predictions = tf.map_fn(map_label_fn_p, tf.range(128, dtype=tf.int64), dtype=tf.int64)
+  #final_perdictions = tf.argmax(new_predictions, axis=1)
+
+  precision = tf.reduce_mean(tf.to_float(tf.equal(final_predictions, truth)))
 
   summary_hook = tf.train.SummarySaverHook(
       save_steps=100,
@@ -141,13 +152,28 @@ def evaluate(hps):
     saver.restore(sess, ckpt_state.model_checkpoint_path)
 
     total_prediction, correct_prediction = 0, 0
+    label_count = collections.Counter()
     for _ in six.moves.range(FLAGS.eval_batch_count):
-      (summaries, loss, predictions, truth, train_step) = sess.run(
-          [model.summaries, model.cost, model.predictions,
+      (summaries, loss, predictions, permutations, truth, train_step) = sess.run(
+          [model.summaries, model.cost, model.predictions, model.permutations,
            model.labels, model.global_step])
 
       truth = np.argmax(truth, axis=1)
-      predictions = np.argmax(predictions, axis=1)
+      n_predictions = np.argmax(predictions, axis=1)
+
+      permutations = np.argmax(permutations, axis=1)
+
+      predictions = []
+      table = lookup_table()
+      for i in range(100):
+        pred = n_predictions[i]
+        perm = permutations[i]
+        predictions.append(table[perm][pred])
+      predictions = np.array(predictions)
+
+
+      #final_perdictions = tf.argmax(new_predictions, axis=1)
+
       correct_prediction += np.sum(truth == predictions)
       total_prediction += predictions.shape[0]
 
