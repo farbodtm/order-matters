@@ -100,7 +100,7 @@ def train(hps):
       elif train_step < 80000:
         self._lrn_rate = 0.001
       else:
-        self._lrn_rate = 0.0001
+        exit()
 
   with tf.train.MonitoredTrainingSession(
       checkpoint_dir=FLAGS.log_root,
@@ -166,6 +166,9 @@ def evaluate(hps):
     tf.logging.info('loss: %.3f, precision: %.3f, best precision: %.3f' %
                     (loss, precision, best_precision))
     summary_writer.flush()
+
+    if train_step > 78000:
+      exit()
 
     if FLAGS.eval_once:
       break

@@ -18,6 +18,7 @@ import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('dataset', 'cifar10', 'cifar10 or cifar100.')
+tf.app.flags.DEFINE_integer('num_cls', 10, 'number of classes.')
 tf.app.flags.DEFINE_string('mode', 'train', 'train or eval.')
 tf.app.flags.DEFINE_string('train_data_path', '',
                            'Filepattern for training data.')
@@ -38,11 +39,11 @@ tf.app.flags.DEFINE_string('log_root', '',
 tf.app.flags.DEFINE_integer('num_gpus', 0,
                             'Number of gpus used for training. (0 or 1)')
 
-def lookup_table():
+def lookup_table(n):
   table = []
-  arr = range(10)
+  arr = range(n)
   table.append(arr)
-  for i in range(9):
+  for i in range(n-1):
     new_arr = list(arr)
     new_arr.insert(0, new_arr.pop())
     table.append(new_arr)
@@ -69,7 +70,7 @@ def train(hps):
   truth = tf.argmax(model.labels, axis=1)
   predictions = tf.argmax(model.predictions, axis=1)
   permutations = tf.argmax(model.permutations, axis=1)
-  table = tf.constant(lookup_table(), dtype=tf.int64)
+  table = tf.constant(lookup_table(FLAGS.num_cls), dtype=tf.int64)
   def map_label_fn_p(i):
     pred = predictions[i]
     perm = permutations[i]
@@ -111,7 +112,8 @@ def train(hps):
       elif train_step < 80000:
         self._lrn_rate = 0.001
       else:
-        self._lrn_rate = 0.0001
+        exit()
+        #self._lrn_rate = 0.0001
 
   with tf.train.MonitoredTrainingSession(
       checkpoint_dir=FLAGS.log_root,
@@ -169,19 +171,17 @@ def evaluate(hps):
       perm_count += collections.Counter(permutations)
 
       predictions = []
-      table = lookup_table()
+      table = lookup_table(FLAGS.num_cls)
       for i in range(100):
         pred = n_predictions[i]
         perm = permutations[i]
         predictions.append(table[perm][pred])
       predictions = np.array(predictions)
 
-
       #final_perdictions = tf.argmax(new_predictions, axis=1)
 
       correct_prediction += np.sum(truth == predictions)
       total_prediction += predictions.shape[0]
-
 
     precision = 1.0 * correct_prediction / total_prediction
     best_precision = max(precision, best_precision)
@@ -207,6 +207,9 @@ def evaluate(hps):
                     (loss, precision, best_precision))
 
     summary_writer.flush()
+
+    if train_step > 75000:
+      exit()
 
     if FLAGS.eval_once:
       break

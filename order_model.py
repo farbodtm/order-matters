@@ -137,7 +137,7 @@ class ResNet(object):
         pred =self.arg_preds[i[1]]
         label = self.arg_labels[i[1]]
         def f1():
-          return tf.sparse_tensor_to_dense(tf.SparseTensor([[(pred + 10) - label]], [1.0], tf.shape(i[0], out_type=tf.int64)))
+          return tf.sparse_tensor_to_dense(tf.SparseTensor([[(pred + tf.shape(self.labels)[1] - label]], [1.0], tf.shape(i[0], out_type=tf.int64)))
         def f2():
           return tf.sparse_tensor_to_dense(tf.SparseTensor([[pred - label]], [1.0], tf.shape(i[0], out_type=tf.int64)))
         delta = tf.cond(pred < label, f1 , f2)
