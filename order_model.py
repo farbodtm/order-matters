@@ -113,7 +113,7 @@ class ResNet(object):
       y = self._relu(y, self.hps.relu_leakiness)
       y = self._global_avg_pool(y)
 
-    with tf.variable_scope('logit_label'):
+    with tf.variable_scope('logit'):
       logits_labels = self._fully_connected(y, self.hps.num_classes)
       self.predictions = tf.nn.softmax(logits_labels)
 
@@ -137,7 +137,7 @@ class ResNet(object):
         pred =self.arg_preds[i[1]]
         label = self.arg_labels[i[1]]
         def f1():
-          return tf.sparse_tensor_to_dense(tf.SparseTensor([[(pred + tf.shape(self.labels)[1] - label]], [1.0], tf.shape(i[0], out_type=tf.int64)))
+          return tf.sparse_tensor_to_dense(tf.SparseTensor([[pred + (tf.shape(self.labels, out_type=tf.int64)[1]) - label]], [1.0], tf.shape(i[0], out_type=tf.int64)))
         def f2():
           return tf.sparse_tensor_to_dense(tf.SparseTensor([[pred - label]], [1.0], tf.shape(i[0], out_type=tf.int64)))
         delta = tf.cond(pred < label, f1 , f2)
@@ -157,14 +157,18 @@ class ResNet(object):
       xent_perm = tf.nn.softmax_cross_entropy_with_logits(
           logits=logits_perms, labels=self.new_permutations)
 
-      self.cost = tf.reduce_mean(xent, name='xent')
+      self.cost_label = tf.reduce_mean(xent, name='xent')
+
       self.cost_perm = tf.reduce_mean(xent_perm, name='xent_perm')
-      tf.summary.scalar('cost/label', self.cost)
+      tf.summary.scalar('cost/label', self.cost_label)
       tf.summary.scalar('cost/perm', self.cost_perm)
 
-      #self._extra_train_ops.append(tf.Print(self.cost, [self.cost], '----', summarize=1))
-      self.cost += self.cost_perm
+      #self._extra_train_ops.append(tf.Print(self.cost_label, [self.cost_label], 'label_cost', summarize=1))
+      #self._extra_train_ops.append(tf.Print(self.cost_perm, [self.cost_perm], 'perm_cost', summarize=1))
+
+      self.cost = self.cost_label + self.cost_perm
       self.cost += self._decay()
+      #self._extra_train_ops.append(tf.Print(self.cost, [self.cost], 'total_cost', summarize=1))
 
       tf.summary.scalar('cost/total', self.cost)
 

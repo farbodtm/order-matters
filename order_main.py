@@ -20,6 +20,9 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('dataset', 'cifar10', 'cifar10 or cifar100.')
 tf.app.flags.DEFINE_integer('num_cls', 10, 'number of classes.')
 tf.app.flags.DEFINE_string('mode', 'train', 'train or eval.')
+
+tf.app.flags.DEFINE_string('start_model_path', '',
+                           'Model path to restore the variable from.')
 tf.app.flags.DEFINE_string('train_data_path', '',
                            'Filepattern for training data.')
 tf.app.flags.DEFINE_string('eval_data_path', '',
@@ -106,15 +109,26 @@ def train(hps):
     def after_run(self, run_context, run_values):
       train_step = run_values.results
       if train_step < 40000:
-        self._lrn_rate = 0.1
-      elif train_step < 60000:
         self._lrn_rate = 0.01
       elif train_step < 80000:
         self._lrn_rate = 0.001
+      elif train_step < 100000:
+        self._lrn_rate = 0.0001
       else:
         exit()
+      #if train_step < 40000:
+      #  self._lrn_rate = 0.01
+      #elif train_step < 60000:
+      #  self._lrn_rate = 0.01
+      #elif train_step < 80000:
+      #  self._lrn_rate = 0.001
+      #else:
+      #  exit()
         #self._lrn_rate = 0.0001
 
+  train_vars = tf.trainable_variables()
+  if (FLAGS.start_model_path):
+    restore_fn = tf.contrib.framework.assign_from_checkpoint_fn(FLAGS.start_model_path, train_vars, ignore_missing_vars=True)
   with tf.train.MonitoredTrainingSession(
       checkpoint_dir=FLAGS.log_root,
       hooks=[logging_hook, _LearningRateSetterHook()],
@@ -124,7 +138,10 @@ def train(hps):
       save_summaries_steps=0,
       save_checkpoint_secs=600,
       config=tf.ConfigProto(allow_soft_placement=True)) as mon_sess:
+    if (FLAGS.start_model_path):
+      restore_fn(mon_sess)
     while not mon_sess.should_stop():
+    #for i in range(100):
       mon_sess.run(model.train_op)
 
 
@@ -208,8 +225,8 @@ def evaluate(hps):
 
     summary_writer.flush()
 
-    if train_step > 75000:
-      exit()
+    if train_step > 97000:
+      break
 
     if FLAGS.eval_once:
       break
