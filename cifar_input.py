@@ -86,7 +86,7 @@ def build_input(dataset, data_path, batch_size, mode):
     image = tf.image.per_image_standardization(image)
 
     example_queue = tf.FIFOQueue(
-        3 * batch_size,
+        4 * batch_size,
         dtypes=[tf.float32, tf.int32],
         shapes=[[image_size, image_size, depth], [1]])
     num_threads = 1

@@ -178,7 +178,9 @@ class ResNet(object):
     self.lrn_rate = tf.constant(self.hps.lrn_rate, tf.float32)
     tf.summary.scalar('learning_rate', self.lrn_rate)
 
-    trainable_variables = tf.trainable_variables()
+    all_trainable_variables = tf.trainable_variables()
+    trainable_variables = filter(lambda x: x.name.startswith('logit'), all_trainable_variables)
+    print trainable_variables
     grads = tf.gradients(self.cost, trainable_variables)
 
     if self.hps.optimizer == 'sgd':

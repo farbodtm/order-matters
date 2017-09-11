@@ -32,7 +32,7 @@ tf.app.flags.DEFINE_string('train_dir', '',
                            'Directory to keep training outputs.')
 tf.app.flags.DEFINE_string('eval_dir', '',
                            'Directory to keep eval outputs.')
-tf.app.flags.DEFINE_integer('eval_batch_count', 50,
+tf.app.flags.DEFINE_integer('eval_batch_count', 100,
                             'Number of batches to eval.')
 tf.app.flags.DEFINE_bool('eval_once', False,
                          'Whether evaluate the model only once.')
@@ -99,7 +99,7 @@ def train(hps):
     """Sets learning_rate based on global step."""
 
     def begin(self):
-      self._lrn_rate = 0.1
+      self._lrn_rate = 0.01
 
     def before_run(self, run_context):
       return tf.train.SessionRunArgs(
