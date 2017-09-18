@@ -54,3 +54,14 @@ py_binary(
         ":order_model",
     ],
 )
+
+py_binary(
+    name = "predict",
+    srcs = [
+        "predict.py",
+    ],
+    deps = [
+        ":cifar_input",
+        ":resnet_model",
+    ],
+)
