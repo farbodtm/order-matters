@@ -166,7 +166,8 @@ class ResNet(object):
       #self._extra_train_ops.append(tf.Print(self.cost_label, [self.cost_label], 'label_cost', summarize=1))
       #self._extra_train_ops.append(tf.Print(self.cost_perm, [self.cost_perm], 'perm_cost', summarize=1))
 
-      self.cost = self.cost_label + self.cost_perm
+      #self.cost = self.cost_label + self.cost_perm
+      self.cost = self.cost_perm
       self.cost += self._decay()
       #self._extra_train_ops.append(tf.Print(self.cost, [self.cost], 'total_cost', summarize=1))
 
@@ -179,7 +180,7 @@ class ResNet(object):
     tf.summary.scalar('learning_rate', self.lrn_rate)
 
     all_trainable_variables = tf.trainable_variables()
-    trainable_variables = filter(lambda x: x.name.startswith('logit'), all_trainable_variables)
+    trainable_variables = filter(lambda x: x.name.startswith('logit_perm'), all_trainable_variables)
     print trainable_variables
     grads = tf.gradients(self.cost, trainable_variables)
 
@@ -220,10 +221,10 @@ class ResNet(object):
             initializer=tf.constant_initializer(1.0, tf.float32),
             trainable=False)
 
-        self._extra_train_ops.append(moving_averages.assign_moving_average(
-            moving_mean, mean, 0.9))
-        self._extra_train_ops.append(moving_averages.assign_moving_average(
-            moving_variance, variance, 0.9))
+        #self._extra_train_ops.append(moving_averages.assign_moving_average(
+        #    moving_mean, mean, 0.9))
+        #self._extra_train_ops.append(moving_averages.assign_moving_average(
+        #    moving_variance, variance, 0.9))
       else:
         mean = tf.get_variable(
             'moving_mean', params_shape, tf.float32,
@@ -312,7 +313,10 @@ class ResNet(object):
   def _decay(self):
     """L2 weight decay loss."""
     costs = []
-    for var in tf.trainable_variables():
+
+    all_trainable_variables = tf.trainable_variables()
+    trainable_variables = filter(lambda x: x.name.startswith('logit_perm'), all_trainable_variables)
+    for var in trainable_variables:
       if var.op.name.find(r'DW') > 0:
         costs.append(tf.nn.l2_loss(var))
         # tf.summary.histogram(var.op.name, var)

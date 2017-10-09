@@ -32,7 +32,7 @@ tf.app.flags.DEFINE_string('train_dir', '',
                            'Directory to keep training outputs.')
 tf.app.flags.DEFINE_string('eval_dir', '',
                            'Directory to keep eval outputs.')
-tf.app.flags.DEFINE_integer('eval_batch_count', 100,
+tf.app.flags.DEFINE_integer('eval_batch_count', 139,
                             'Number of batches to eval.')
 tf.app.flags.DEFINE_bool('eval_once', False,
                          'Whether evaluate the model only once.')
@@ -99,7 +99,7 @@ def train(hps):
     """Sets learning_rate based on global step."""
 
     def begin(self):
-      self._lrn_rate = 0.01
+      self._lrn_rate = 0.1
 
     def before_run(self, run_context):
       return tf.train.SessionRunArgs(
@@ -109,11 +109,11 @@ def train(hps):
     def after_run(self, run_context, run_values):
       train_step = run_values.results
       if train_step < 40000:
-        self._lrn_rate = 0.01
+        self._lrn_rate = 0.1
       elif train_step < 80000:
-        self._lrn_rate = 0.001
+        self._lrn_rate = 0.01
       elif train_step < 100000:
-        self._lrn_rate = 0.0001
+        self._lrn_rate = 0.001
       else:
         exit()
       #if train_step < 40000:
@@ -126,9 +126,12 @@ def train(hps):
       #  exit()
         #self._lrn_rate = 0.0001
 
-  train_vars = tf.trainable_variables()
+  variables = tf.all_variables()
+  variables = filter(lambda x: not x.name.startswith('global_step'), variables)
+  print variables
+
   if (FLAGS.start_model_path):
-    restore_fn = tf.contrib.framework.assign_from_checkpoint_fn(FLAGS.start_model_path, train_vars, ignore_missing_vars=True)
+    restore_fn = tf.contrib.framework.assign_from_checkpoint_fn(FLAGS.start_model_path, variables, ignore_missing_vars=True)
   with tf.train.MonitoredTrainingSession(
       checkpoint_dir=FLAGS.log_root,
       hooks=[logging_hook, _LearningRateSetterHook()],
@@ -136,7 +139,7 @@ def train(hps):
       # Since we provide a SummarySaverHook, we need to disable default
       # SummarySaverHook. To do that we set save_summaries_steps to 0.
       save_summaries_steps=0,
-      save_checkpoint_secs=600,
+      save_checkpoint_secs=200,
       config=tf.ConfigProto(allow_soft_placement=True)) as mon_sess:
     if (FLAGS.start_model_path):
       restore_fn(mon_sess)
@@ -190,7 +193,7 @@ def evaluate(hps):
 
       predictions = []
       table = lookup_table(FLAGS.num_cls)
-      for i in range(100):
+      for i in range(hps.batch_size):
         pred = n_predictions[i]
         perm = permutations[i]
         predictions.append(table[perm][pred])
@@ -232,7 +235,7 @@ def evaluate(hps):
     if FLAGS.eval_once:
       break
 
-    time.sleep(600)
+    time.sleep(200)
 
 
 def main(_):
@@ -246,7 +249,7 @@ def main(_):
   if FLAGS.mode == 'train':
     batch_size = 128
   elif FLAGS.mode == 'eval':
-    batch_size = 100
+    batch_size = 1
 
   if FLAGS.dataset == 'cifar10':
     num_classes = 10

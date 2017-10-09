@@ -1,14 +1,15 @@
 import numpy as np
-import resnet_model
+import resnet_model_with_placeholder
 import tensorflow as tf
 import cPickle
+import cv2
 
 def run(hps):
 
   image = tf.zeros([1, 32, 32, 3])
   labels = tf.zeros([1, 10])
 
-  model = resnet_model.ResNet(hps, image, labels, 'eval')
+  model = resnet_model_with_placeholder.ResNet(hps, image, labels, 'eval')
   model.build_graph()
   saver = tf.train.Saver()
 
@@ -56,21 +57,27 @@ def run(hps):
       labels = dense_to_one_hot(labels)
 
       images = tf.Session().run(image)
-      (loss, predictions, train_step) = sess.run(
+      (loss, rpredictions, train_step) = sess.run(
           [model.cost, model.predictions, model.global_step], feed_dict={model.images: images, model.labels: labels})
-      predictions = np.argmax(predictions, axis=1)
+      predictions = np.argmax(rpredictions, axis=1)
       for i, p in enumerate(predictions):
         if predictions[i] != data_labels[i]:
           if not re.has_key(data_labels[i]):
             re[data_labels[i]] = []
           re[data_labels[i]].append(data_images[i])
+          print 'Incorrect'
+          print 'Label: ' + str(data_labels[i])
+          print rpredictions[i]
+          cv_img = np.array(data_images[i])
+          cv_img = np.reshape(cv_img, (depth, image_size, image_size))
+          cv_img = np.transpose(cv_img, (1, 2, 0))
+          cv2.imshow('image', cv_img)
+          cv2.waitKey()
         else:
           correct.append((data_labels[i], data_images[i]))
 
   count = {}
   fc = 0
-  for c in count:
-    fc += count[c]
   fil = np.array([])
   for cls in re:
     count[cls] = len(re[cls])
@@ -78,14 +85,21 @@ def run(hps):
     for im in re[cls]:
       fil = np.concatenate((fil, la))
       fil = np.concatenate((fil, im))
-  for im in range(fc):
-    fil = np.concatenate((fil, correct[im][0]))
+
+  for c in count:
+    fc += count[c]
+  for im in range(int(fc/5)):
+    fil = np.concatenate((fil, np.array([int(correct[im][0])])))
     fil = np.concatenate((fil, correct[im][1]))
-  with open('./new_training.bin', 'wb') as f:
-    f.write(fil.tostring())
+  filint = fil.astype(np.uint8)
+  print fc
+  print count
+  print int(fc/5)
+  with open('./new_training5.bin', 'wb') as f:
+    f.write(filint.tostring())
       
 def main(_):
-  hps = resnet_model.HParams(batch_size=100,
+  hps = resnet_model_with_placeholder.HParams(batch_size=100,
                              num_classes=10,
                              min_lrn_rate=0.0001,
                              lrn_rate=0.1,

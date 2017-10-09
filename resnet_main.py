@@ -18,6 +18,7 @@
 import time
 import six
 import sys
+import collections
 
 import cifar_input
 import numpy as np
@@ -36,7 +37,7 @@ tf.app.flags.DEFINE_string('train_dir', '',
                            'Directory to keep training outputs.')
 tf.app.flags.DEFINE_string('eval_dir', '',
                            'Directory to keep eval outputs.')
-tf.app.flags.DEFINE_integer('eval_batch_count', 50,
+tf.app.flags.DEFINE_integer('eval_batch_count', 100,
                             'Number of batches to eval.')
 tf.app.flags.DEFINE_bool('eval_once', False,
                          'Whether evaluate the model only once.')
@@ -141,6 +142,9 @@ def evaluate(hps):
     saver.restore(sess, ckpt_state.model_checkpoint_path)
 
     total_prediction, correct_prediction = 0, 0
+
+    truth_count = collections.Counter()
+    label_count = collections.Counter()
     for _ in six.moves.range(FLAGS.eval_batch_count):
       (summaries, loss, predictions, truth, train_step) = sess.run(
           [model.summaries, model.cost, model.predictions,
@@ -148,11 +152,21 @@ def evaluate(hps):
 
       truth = np.argmax(truth, axis=1)
       predictions = np.argmax(predictions, axis=1)
+
+      truth_count += collections.Counter(truth)
+      label_count += collections.Counter(predictions)
+
       correct_prediction += np.sum(truth == predictions)
       total_prediction += predictions.shape[0]
 
     precision = 1.0 * correct_prediction / total_prediction
     best_precision = max(precision, best_precision)
+
+    tf.logging.info('truth count:')
+    print truth_count
+
+    tf.logging.info('label count:')
+    print label_count
 
     precision_summ = tf.Summary()
     precision_summ.value.add(
